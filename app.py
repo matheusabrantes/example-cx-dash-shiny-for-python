@@ -221,21 +221,33 @@ def server(input, output, session):
         if df.empty: 
             return ui.div("No data available for selected filters.")
         
-        # Convert to datetime and aggregate by date
+        # Convert to datetime and extract year-month
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        df_daily = df.groupby('date').size().reset_index(name='count')
-        df_daily = df_daily.sort_values('date').dropna()
+        df = df.dropna(subset=['date'])
         
-        if df_daily.empty:
+        if df.empty:
             return ui.div("No valid date data available.")
+        
+        # Create year-month column for aggregation
+        df['year_month'] = df['date'].dt.to_period('M')
+        
+        # Aggregate by month
+        df_monthly = df.groupby('year_month').size().reset_index(name='count')
+        df_monthly = df_monthly.sort_values('year_month')
+        
+        # Convert period back to timestamp for plotting
+        df_monthly['date'] = df_monthly['year_month'].dt.to_timestamp()
+        
+        # Create formatted labels for x-axis (YYYY-MM format)
+        df_monthly['month_label'] = df_monthly['year_month'].astype(str)
         
         # Create the figure manually with go.Scatter for better control
         fig = go.Figure()
         
         # Add the area trace
         fig.add_trace(go.Scatter(
-            x=df_daily['date'],
-            y=df_daily['count'],
+            x=df_monthly['month_label'],
+            y=df_monthly['count'],
             mode='lines',
             name='Complaints',
             line=dict(
@@ -246,7 +258,7 @@ def server(input, output, session):
             ),
             fill='tozeroy',
             fillcolor='rgba(59, 130, 246, 0.15)',
-            hovertemplate='%{y} complaints<extra></extra>'
+            hovertemplate='%{x}<br>%{y} complaints<extra></extra>'
         ))
         
         fig.update_layout(
@@ -256,11 +268,9 @@ def server(input, output, session):
             showlegend=False,
             xaxis=dict(
                 title=None,
-                type='date',
-                tickformat="%b",
-                dtick="M1",
                 showgrid=False,
-                zeroline=False
+                zeroline=False,
+                tickangle=-45
             ),
             yaxis=dict(
                 title="Complaints",
