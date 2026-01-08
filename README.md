@@ -1,5 +1,7 @@
 # CX Complaints Insights Dashboard
 
+![Dashboard Preview](dashboard_preview.png)
+
 A polished, production-style demo application built with **Shiny for Python**. This project showcases interactive data visualization, SQL-driven data preparation, and modular app design.
 
 ## Features
