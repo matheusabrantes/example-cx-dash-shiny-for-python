@@ -222,9 +222,12 @@ def server(input, output, session):
             return ui.div("No data available for selected filters.")
         
         # Convert to datetime and aggregate by date
-        df['date'] = pd.to_datetime(df['date'])
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
         df_daily = df.groupby('date').size().reset_index(name='count')
-        df_daily = df_daily.sort_values('date')
+        df_daily = df_daily.sort_values('date').dropna()
+        
+        if df_daily.empty:
+            return ui.div("No valid date data available.")
         
         # Create the figure manually with go.Scatter for better control
         fig = go.Figure()
@@ -243,7 +246,7 @@ def server(input, output, session):
             ),
             fill='tozeroy',
             fillcolor='rgba(59, 130, 246, 0.15)',
-            hovertemplate='<b>Date</b>: %{x|%b %d, %Y}<br><b>Complaints</b>: %{y}<extra></extra>'
+            hovertemplate='%{y} complaints<extra></extra>'
         ))
         
         fig.update_layout(
@@ -253,6 +256,7 @@ def server(input, output, session):
             showlegend=False,
             xaxis=dict(
                 title=None,
+                type='date',
                 tickformat="%b",
                 dtick="M1",
                 showgrid=False,
