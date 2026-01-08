@@ -80,6 +80,7 @@ def get_complex_sql_metrics():
 # --- UI DEFINITION ---
 
 app_ui = ui.page_navbar(
+    ui.include_css(Path(__file__).parent / "styles.css"),
     ui.nav_panel(
         "Overview",
         ui.layout_sidebar(
@@ -100,29 +101,25 @@ app_ui = ui.page_navbar(
             ),
             # KPI Cards
             ui.layout_columns(
-                ui.value_box(
-                    "Total Complaints",
-                    ui.output_text("total_complaints"),
-                    showcase=icon_svg("clipboard-list"),
-                    theme="primary"
+                ui.div(
+                    ui.div("Total Complaints", class_="kpi-title"),
+                    ui.output_text("total_complaints", inline=True),
+                    class_="kpi-card blue"
                 ),
-                ui.value_box(
-                    "Escalation Rate",
-                    ui.output_text("escalation_rate"),
-                    showcase=icon_svg("triangle-exclamation"),
-                    theme="danger"
+                ui.div(
+                    ui.div("Escalation Rate", class_="kpi-title"),
+                    ui.output_text("escalation_rate", inline=True),
+                    class_="kpi-card red"
                 ),
-                ui.value_box(
-                    "Avg SLA (Hours)",
-                    ui.output_text("avg_sla"),
-                    showcase=icon_svg("clock"),
-                    theme="info"
+                ui.div(
+                    ui.div("Avg SLA (Hours)", class_="kpi-title"),
+                    ui.output_text("avg_sla", inline=True),
+                    class_="kpi-card teal"
                 ),
-                ui.value_box(
-                    "Total Value",
-                    ui.output_text("total_amount"),
-                    showcase=icon_svg("dollar-sign"),
-                    theme="success"
+                ui.div(
+                    ui.div("Total Value", class_="kpi-title"),
+                    ui.output_text("total_amount", inline=True),
+                    class_="kpi-card green"
                 ),
                 fill=False
             ),
@@ -192,26 +189,26 @@ def server(input, output, session):
     # KPI Calculations
     @render.text
     def total_complaints():
-        return f"{len(filtered_df()):,}"
+        return ui.span(f"{len(filtered_df()):,}", class_="kpi-value")
 
     @render.text
     def escalation_rate():
         df = filtered_df()
-        if len(df) == 0: return "0.0%"
+        if len(df) == 0: return ui.span("0.0%", class_="kpi-value")
         rate = (df['is_escalated'].sum() / len(df)) * 100
-        return f"{rate:.1f}%"
+        return ui.span(f"{rate:.1f}%", class_="kpi-value")
 
     @render.text
     def avg_sla():
         df = filtered_df()
-        if len(df) == 0: return "0.0"
-        return f"{df['sla_hours'].mean():.1f}"
+        if len(df) == 0: return ui.span("0.0", class_="kpi-value")
+        return ui.span(f"{df['sla_hours'].mean():.1f}", class_="kpi-value")
 
     @render.text
     def total_amount():
         df = filtered_df()
-        if len(df) == 0: return "$0"
-        return f"${df['amount'].sum():,.0f}"
+        if len(df) == 0: return ui.span("$0", class_="kpi-value")
+        return ui.span(f"${df['amount'].sum():,.0f}", class_="kpi-value")
 
     # Visualizations
     @render_widget
@@ -223,8 +220,15 @@ def server(input, output, session):
         df_daily = df.groupby('date').size().reset_index(name='count')
         
         fig = px.line(df_daily, x='date', y='count', title=None, template="plotly_white")
-        fig.update_traces(line_color='#2c3e50', line_width=3)
-        fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350)
+        fig.update_traces(line_color='#2c3e50', line_width=3, hovertemplate='Date: %{x|%b %d, %Y}<br>Count: %{y}')
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=20, b=0), 
+            height=350,
+            xaxis=dict(
+                tickformat="%b %Y",
+                dtick="M1"
+            )
+        )
         return fig
 
     @render_widget
