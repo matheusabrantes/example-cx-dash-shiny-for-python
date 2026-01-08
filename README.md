@@ -2,6 +2,8 @@
 
 ![Dashboard Preview](dashboard_preview.png)
 
+[**🚀 Live Demo**](https://matheusabrantes-example-cx-dash-shiny-for-python.share.connect.posit.cloud/)
+
 A polished, production-style demo application built with **Shiny for Python**. This project showcases interactive data visualization, SQL-driven data preparation, and modular app design.
 
 ## Features
