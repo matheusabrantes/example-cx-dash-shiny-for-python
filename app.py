@@ -136,7 +136,7 @@ app_ui = ui.page_navbar(
                     ui.card_header("Complaints by Category"),
                     output_widget("category_bar_plot")
                 ),
-                col_widths=[8, 4]
+                col_widths={"sm": (12, 12), "md": (12, 12), "lg": (8, 4)}
             ),
             ui.card(
                 ui.card_header("Detailed Complaints Data"),
@@ -263,18 +263,20 @@ def server(input, output, session):
         
         fig.update_layout(
             template="plotly_white",
-            margin=dict(l=50, r=20, t=20, b=50),
-            height=350,
+            margin=dict(l=60, r=30, t=30, b=80),
+            height=400,
             showlegend=False,
             xaxis=dict(
                 title=None,
                 showgrid=False,
                 zeroline=False,
-                tickangle=-45
+                tickangle=-45,
+                automargin=True
             ),
             yaxis=dict(
                 title="Complaints",
                 showgrid=True,
+                automargin=True,
                 gridcolor='#f1f5f9',
                 zeroline=False
             ),
@@ -292,7 +294,13 @@ def server(input, output, session):
         df_cat = df.groupby('category').size().reset_index(name='count').sort_values('count', ascending=True)
         fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
         fig.update_traces(marker_color='#3498db')
-        fig.update_layout(margin=dict(l=150, r=20, t=20, b=20), height=350, yaxis_title=None)
+        fig.update_layout(
+            margin=dict(l=20, r=30, t=30, b=30), 
+            height=400, 
+            yaxis_title=None,
+            yaxis=dict(automargin=True),
+            xaxis=dict(automargin=True)
+        )
         return fig
 
     @render.data_frame
