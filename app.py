@@ -80,7 +80,6 @@ def get_complex_sql_metrics():
 # --- UI DEFINITION ---
 
 app_ui = ui.page_navbar(
-    ui.include_css(Path(__file__).parent / "styles.css"),
     ui.nav_panel(
         "Overview",
         ui.layout_sidebar(
@@ -156,6 +155,7 @@ app_ui = ui.page_navbar(
     ),
     title="CX Complaints Insights",
     id="main_navbar",
+    header=ui.include_css(Path(__file__).parent / "styles.css"),
     fillable=True
 )
 
