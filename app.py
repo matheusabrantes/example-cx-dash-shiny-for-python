@@ -137,10 +137,6 @@ app_ui = ui.page_navbar(
                     output_widget("category_bar_plot")
                 ),
                 col_widths={"sm": (12, 12), "md": (12, 12), "lg": (8, 4)}
-            ),
-            ui.card(
-                ui.card_header("Detailed Complaints Data"),
-                ui.output_data_frame("complaints_table")
             )
         )
     ),
@@ -275,7 +271,7 @@ def server(input, output, session):
             ),
             yaxis=dict(
                 title="Complaints",
-                titlefont=dict(size=14),
+                title_font=dict(size=14),
                 showgrid=True,
                 automargin=True,
                 gridcolor='#f1f5f9',
@@ -296,9 +292,9 @@ def server(input, output, session):
         df_cat = df.groupby('category').size().reset_index(name='count').sort_values('count', ascending=True)
         
         # Calculate dynamic height based on number of categories
-        # Minimum 300px, 80px per category to ensure all are visible
+        # Minimum 250px, 40px per category for compact display
         num_categories = len(df_cat)
-        dynamic_height = max(300, num_categories * 80)
+        dynamic_height = max(250, num_categories * 40)
         
         fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
         fig.update_traces(marker_color='#3498db')
@@ -311,9 +307,6 @@ def server(input, output, session):
         )
         return fig
 
-    @render.data_frame
-    def complaints_table():
-        return render.DataTable(filtered_df())
 
     # Drill-down Visuals
     @render_widget
