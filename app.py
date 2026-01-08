@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from shiny import App, render, ui, reactive
 from faicons import icon_svg
 from pathlib import Path
+from shinywidgets import output_widget, render_widget
 
 # --- DATA LAYER (SQL) ---
 # This section simulates a production SQL layer.
@@ -129,12 +130,11 @@ app_ui = ui.page_navbar(
             ui.layout_columns(
                 ui.card(
                     ui.card_header("Complaints Over Time"),
-                    render.plot(lambda: None), # Placeholder for Plotly
-                    ui.output_ui("time_series_plot")
+                    output_widget("time_series_plot")
                 ),
                 ui.card(
                     ui.card_header("Complaints by Category"),
-                    ui.output_ui("category_bar_plot")
+                    output_widget("category_bar_plot")
                 ),
                 col_widths=[8, 4]
             ),
@@ -149,11 +149,11 @@ app_ui = ui.page_navbar(
         ui.layout_columns(
             ui.card(
                 ui.card_header("Top Countries by Volume"),
-                ui.output_ui("country_rank_plot")
+                output_widget("country_rank_plot")
             ),
             ui.card(
                 ui.card_header("Channel Performance"),
-                ui.output_ui("channel_bar_plot")
+                output_widget("channel_bar_plot")
             )
         )
     ),
@@ -214,7 +214,7 @@ def server(input, output, session):
         return f"${df['amount'].sum():,.0f}"
 
     # Visualizations
-    @render.ui
+    @render_widget
     def time_series_plot():
         df = filtered_df().copy()
         if df.empty: return ui.div("No data available for selected filters.")
@@ -225,9 +225,9 @@ def server(input, output, session):
         fig = px.line(df_daily, x='date', y='count', title=None, template="plotly_white")
         fig.update_traces(line_color='#2c3e50', line_width=3)
         fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350)
-        return go.Figure(fig)
+        return fig
 
-    @render.ui
+    @render_widget
     def category_bar_plot():
         df = filtered_df()
         if df.empty: return ui.div("No data available.")
@@ -236,14 +236,14 @@ def server(input, output, session):
         fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
         fig.update_traces(marker_color='#3498db')
         fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350, yaxis_title=None)
-        return go.Figure(fig)
+        return fig
 
     @render.data_frame
     def complaints_table():
         return render.DataTable(filtered_df())
 
     # Drill-down Visuals
-    @render.ui
+    @render_widget
     def country_rank_plot():
         df = filtered_df()
         if df.empty: return ui.div("No data.")
@@ -251,9 +251,9 @@ def server(input, output, session):
         df_country = df.groupby('country').size().reset_index(name='count').sort_values('count', ascending=False)
         fig = px.pie(df_country, values='count', names='country', hole=.4, template="plotly_white")
         fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=400)
-        return go.Figure(fig)
+        return fig
 
-    @render.ui
+    @render_widget
     def channel_bar_plot():
         df = filtered_df()
         if df.empty: return ui.div("No data.")
@@ -261,6 +261,6 @@ def server(input, output, session):
         df_chan = df.groupby(['channel', 'status']).size().reset_index(name='count')
         fig = px.bar(df_chan, x='channel', y='count', color='status', barmode='group', template="plotly_white")
         fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=400)
-        return go.Figure(fig)
+        return fig
 
 app = App(app_ui, server)
