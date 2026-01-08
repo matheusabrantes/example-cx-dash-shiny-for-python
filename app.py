@@ -102,22 +102,22 @@ app_ui = ui.page_navbar(
             ui.layout_columns(
                 ui.div(
                     ui.div("Total Complaints", class_="kpi-title"),
-                    ui.output_text("total_complaints", inline=True),
+                    ui.output_ui("total_complaints", inline=True),
                     class_="kpi-card blue"
                 ),
                 ui.div(
                     ui.div("Escalation Rate", class_="kpi-title"),
-                    ui.output_text("escalation_rate", inline=True),
+                    ui.output_ui("escalation_rate", inline=True),
                     class_="kpi-card red"
                 ),
                 ui.div(
                     ui.div("Avg SLA (Hours)", class_="kpi-title"),
-                    ui.output_text("avg_sla", inline=True),
+                    ui.output_ui("avg_sla", inline=True),
                     class_="kpi-card teal"
                 ),
                 ui.div(
                     ui.div("Total Value", class_="kpi-title"),
-                    ui.output_text("total_amount", inline=True),
+                    ui.output_ui("total_amount", inline=True),
                     class_="kpi-card green"
                 ),
                 fill=False
@@ -187,24 +187,24 @@ def server(input, output, session):
         )
 
     # KPI Calculations
-    @render.text
+    @render.ui
     def total_complaints():
         return ui.span(f"{len(filtered_df()):,}", class_="kpi-value")
 
-    @render.text
+    @render.ui
     def escalation_rate():
         df = filtered_df()
         if len(df) == 0: return ui.span("0.0%", class_="kpi-value")
         rate = (df['is_escalated'].sum() / len(df)) * 100
         return ui.span(f"{rate:.1f}%", class_="kpi-value")
 
-    @render.text
+    @render.ui
     def avg_sla():
         df = filtered_df()
         if len(df) == 0: return ui.span("0.0", class_="kpi-value")
         return ui.span(f"{df['sla_hours'].mean():.1f}", class_="kpi-value")
 
-    @render.text
+    @render.ui
     def total_amount():
         df = filtered_df()
         if len(df) == 0: return ui.span("$0", class_="kpi-value")
@@ -222,11 +222,13 @@ def server(input, output, session):
         fig = px.line(df_daily, x='date', y='count', title=None, template="plotly_white")
         fig.update_traces(line_color='#2c3e50', line_width=3, hovertemplate='Date: %{x|%b %d, %Y}<br>Count: %{y}')
         fig.update_layout(
-            margin=dict(l=0, r=0, t=20, b=0), 
+            margin=dict(l=0, r=0, t=20, b=40), 
             height=350,
             xaxis=dict(
+                type='date',
                 tickformat="%b %Y",
-                dtick="M1"
+                dtick="M1",
+                visible=True
             )
         )
         return fig
@@ -239,7 +241,7 @@ def server(input, output, session):
         df_cat = df.groupby('category').size().reset_index(name='count').sort_values('count', ascending=True)
         fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
         fig.update_traces(marker_color='#3498db')
-        fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350, yaxis_title=None)
+        fig.update_layout(margin=dict(l=120, r=20, t=20, b=20), height=350, yaxis_title=None)
         return fig
 
     @render.data_frame
