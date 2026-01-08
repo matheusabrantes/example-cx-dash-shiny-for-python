@@ -216,22 +216,25 @@ def server(input, output, session):
         df = filtered_df().copy()
         if df.empty: return ui.div("No data available for selected filters.")
         
+        # Ensure date is datetime and sorted
         df['date'] = pd.to_datetime(df['date'])
         df_daily = df.groupby('date').size().reset_index(name='count').sort_values('date')
         
+        # Create plot
         fig = px.line(
             df_daily, 
             x='date', 
-            y='count', 
+            y='count',
             template="plotly_white",
             markers=True
         )
         
+        # Style traces - using standard hover to avoid NaN issues
         fig.update_traces(
             line_color='#2c3e50', 
             line_width=2,
             marker=dict(size=6),
-            hovertemplate='Date: %{x|%b %d, %Y}<br>Complaints: %{y}'
+            hovertemplate='<b>Date</b>: %{x}<br><b>Complaints</b>: %{y}<extra></extra>'
         )
         
         fig.update_layout(
@@ -239,15 +242,15 @@ def server(input, output, session):
             height=350,
             xaxis=dict(
                 title=None,
-                visible=True,
-                showgrid=True,
-                tickformat="%b %d"
+                type='date',
+                tickformat="%b %d, %Y",
+                showgrid=True
             ),
             yaxis=dict(
                 title="Complaints",
                 showgrid=True
             ),
-            hovermode="x unified"
+            hovermode="x"
         )
         return fig
 
