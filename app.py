@@ -218,46 +218,56 @@ def server(input, output, session):
     @render_widget
     def time_series_plot():
         df = filtered_df().copy()
-        if df.empty: return ui.div("No data available for selected filters.")
+        if df.empty: 
+            return ui.div("No data available for selected filters.")
         
-        # Ensure date is datetime and aggregate by month for a smoother look like the mockup
+        # Convert to datetime and aggregate by date
         df['date'] = pd.to_datetime(df['date'])
-        df_monthly = df.groupby(pd.Grouper(key='date', freq='ME')).size().reset_index(name='count')
+        df_daily = df.groupby('date').size().reset_index(name='count')
+        df_daily = df_daily.sort_values('date')
         
-        # Create Area Plot with Spline
-        fig = px.area(
-            df_monthly, 
-            x='date', 
-            y='count',
-            template="plotly_white",
-            line_shape='spline' # Smooth curve like the mockup
-        )
+        # Create the figure manually with go.Scatter for better control
+        fig = go.Figure()
         
-        # Style traces
-        fig.update_traces(
-            line_color='#3b82f6', 
-            line_width=3,
-            fillcolor='rgba(59, 130, 246, 0.1)', # Subtle blue shading
-            hovertemplate='<b>Month</b>: %{x|%B %Y}<br><b>Complaints</b>: %{y}<extra></extra>'
-        )
+        # Add the area trace
+        fig.add_trace(go.Scatter(
+            x=df_daily['date'],
+            y=df_daily['count'],
+            mode='lines',
+            name='Complaints',
+            line=dict(
+                color='#3b82f6',
+                width=3,
+                shape='spline',
+                smoothing=1.3
+            ),
+            fill='tozeroy',
+            fillcolor='rgba(59, 130, 246, 0.15)',
+            hovertemplate='<b>Date</b>: %{x|%b %d, %Y}<br><b>Complaints</b>: %{y}<extra></extra>'
+        ))
         
         fig.update_layout(
-            margin=dict(l=50, r=20, t=20, b=50), 
+            template="plotly_white",
+            margin=dict(l=50, r=20, t=20, b=50),
             height=350,
+            showlegend=False,
             xaxis=dict(
                 title=None,
-                type='date',
-                tickformat="%b", # Just the month name like the mockup
+                tickformat="%b",
                 dtick="M1",
-                showgrid=False
+                showgrid=False,
+                zeroline=False
             ),
             yaxis=dict(
                 title="Complaints",
                 showgrid=True,
-                gridcolor='#f1f5f9'
+                gridcolor='#f1f5f9',
+                zeroline=False
             ),
-            hovermode="x"
+            hovermode="x unified",
+            plot_bgcolor='white'
         )
+        
         return fig
 
     @render_widget
