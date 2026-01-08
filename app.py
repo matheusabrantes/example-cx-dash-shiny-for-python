@@ -1,0 +1,266 @@
+import sqlite3
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from shiny import App, render, ui, reactive
+from faicons import icon_svg
+from pathlib import Path
+
+# --- DATA LAYER (SQL) ---
+# This section simulates a production SQL layer.
+# In a real Posit Connect deployment, you would use environment variables
+# for credentials and connect to a production DB (Postgres, Snowflake, etc.)
+
+DB_PATH = Path(__file__).parent / "complaints.db"
+
+def get_filtered_data(date_range, countries, channels, categories, statuses):
+    conn = sqlite3.connect(DB_PATH)
+    
+    # Base query with filters
+    query = """
+    SELECT * FROM complaints 
+    WHERE date BETWEEN ? AND ?
+    """
+    params = [date_range[0], date_range[1]]
+    
+    if countries:
+        query += f" AND country IN ({','.join(['?']*len(countries))})"
+        params.extend(countries)
+    if channels:
+        query += f" AND channel IN ({','.join(['?']*len(channels))})"
+        params.extend(channels)
+    if categories:
+        query += f" AND category IN ({','.join(['?']*len(categories))})"
+        params.extend(categories)
+    if statuses:
+        query += f" AND status IN ({','.join(['?']*len(statuses))})"
+        params.extend(statuses)
+        
+    df = pd.read_sql(query, conn, params=params)
+    conn.close()
+    return df
+
+def get_complex_sql_metrics():
+    """
+    Example of a non-trivial SQL query using CTE and Window Functions.
+    This query calculates the cumulative amount of complaints over time 
+    and the rank of each category by volume within its country.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    query = """
+    WITH DailyStats AS (
+        SELECT 
+            date,
+            category,
+            country,
+            COUNT(*) as daily_count,
+            SUM(amount) as daily_amount
+        FROM complaints
+        GROUP BY date, category, country
+    ),
+    RankedCategories AS (
+        SELECT 
+            *,
+            -- Window Function: Rank categories by volume within each country
+            RANK() OVER (PARTITION BY country ORDER BY daily_count DESC) as category_rank,
+            -- Window Function: Cumulative sum of amount over time
+            SUM(daily_amount) OVER (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as cumulative_amount
+        FROM DailyStats
+    )
+    SELECT * FROM RankedCategories
+    LIMIT 100
+    """
+    # This query serves as a 'performance layer' by pre-aggregating complex metrics
+    # that would be expensive to compute in-memory for very large datasets.
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+# --- UI DEFINITION ---
+
+app_ui = ui.page_navbar(
+    ui.nav_panel(
+        "Overview",
+        ui.layout_sidebar(
+            ui.sidebar(
+                ui.h4("Filters"),
+                ui.input_date_range("date_range", "Date Range", start="2025-01-01", end="2025-12-31"),
+                ui.input_selectize("country", "Country", choices=[], multiple=True),
+                ui.input_selectize("channel", "Channel", choices=[], multiple=True),
+                ui.input_selectize("category", "Category", choices=[], multiple=True),
+                ui.input_selectize("status", "Status", choices=[], multiple=True),
+                ui.hr(),
+                ui.markdown("""
+                **CX Complaints Insights**  
+                This dashboard provides a comprehensive view of customer complaints, 
+                helping teams monitor SLAs, escalation rates, and volume trends.
+                """),
+                width=300
+            ),
+            # KPI Cards
+            ui.layout_columns(
+                ui.value_box(
+                    "Total Complaints",
+                    ui.output_text("total_complaints"),
+                    showcase=icon_svg("clipboard-list"),
+                    theme="primary"
+                ),
+                ui.value_box(
+                    "Escalation Rate",
+                    ui.output_text("escalation_rate"),
+                    showcase=icon_svg("triangle-exclamation"),
+                    theme="danger"
+                ),
+                ui.value_box(
+                    "Avg SLA (Hours)",
+                    ui.output_text("avg_sla"),
+                    showcase=icon_svg("clock"),
+                    theme="info"
+                ),
+                ui.value_box(
+                    "Total Value",
+                    ui.output_text("total_amount"),
+                    showcase=icon_svg("dollar-sign"),
+                    theme="success"
+                ),
+                fill=False
+            ),
+            # Visualizations
+            ui.layout_columns(
+                ui.card(
+                    ui.card_header("Complaints Over Time"),
+                    render.plot(lambda: None), # Placeholder for Plotly
+                    ui.output_ui("time_series_plot")
+                ),
+                ui.card(
+                    ui.card_header("Complaints by Category"),
+                    ui.output_ui("category_bar_plot")
+                ),
+                col_widths=[8, 4]
+            ),
+            ui.card(
+                ui.card_header("Detailed Complaints Data"),
+                ui.output_data_frame("complaints_table")
+            )
+        )
+    ),
+    ui.nav_panel(
+        "Drill-down",
+        ui.layout_columns(
+            ui.card(
+                ui.card_header("Top Countries by Volume"),
+                ui.output_ui("country_rank_plot")
+            ),
+            ui.card(
+                ui.card_header("Channel Performance"),
+                ui.output_ui("channel_bar_plot")
+            )
+        )
+    ),
+    title="CX Complaints Insights",
+    id="main_navbar",
+    fillable=True
+)
+
+# --- SERVER LOGIC ---
+
+def server(input, output, session):
+    
+    # Initialize filter choices
+    @reactive.Effect
+    def _():
+        conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql("SELECT DISTINCT country, channel, category, status FROM complaints", conn)
+        conn.close()
+        
+        ui.update_selectize("country", choices=sorted(df['country'].unique().tolist()))
+        ui.update_selectize("channel", choices=sorted(df['channel'].unique().tolist()))
+        ui.update_selectize("category", choices=sorted(df['category'].unique().tolist()))
+        ui.update_selectize("status", choices=sorted(df['status'].unique().tolist()))
+
+    # Reactive data subset
+    @reactive.calc
+    def filtered_df():
+        return get_filtered_data(
+            input.date_range(),
+            input.country(),
+            input.channel(),
+            input.category(),
+            input.status()
+        )
+
+    # KPI Calculations
+    @render.text
+    def total_complaints():
+        return f"{len(filtered_df()):,}"
+
+    @render.text
+    def escalation_rate():
+        df = filtered_df()
+        if len(df) == 0: return "0.0%"
+        rate = (df['is_escalated'].sum() / len(df)) * 100
+        return f"{rate:.1f}%"
+
+    @render.text
+    def avg_sla():
+        df = filtered_df()
+        if len(df) == 0: return "0.0"
+        return f"{df['sla_hours'].mean():.1f}"
+
+    @render.text
+    def total_amount():
+        df = filtered_df()
+        if len(df) == 0: return "$0"
+        return f"${df['amount'].sum():,.0f}"
+
+    # Visualizations
+    @render.ui
+    def time_series_plot():
+        df = filtered_df().copy()
+        if df.empty: return ui.div("No data available for selected filters.")
+        
+        df['date'] = pd.to_datetime(df['date'])
+        df_daily = df.groupby('date').size().reset_index(name='count')
+        
+        fig = px.line(df_daily, x='date', y='count', title=None, template="plotly_white")
+        fig.update_traces(line_color='#2c3e50', line_width=3)
+        fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350)
+        return go.Figure(fig)
+
+    @render.ui
+    def category_bar_plot():
+        df = filtered_df()
+        if df.empty: return ui.div("No data available.")
+        
+        df_cat = df.groupby('category').size().reset_index(name='count').sort_values('count', ascending=True)
+        fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
+        fig.update_traces(marker_color='#3498db')
+        fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350, yaxis_title=None)
+        return go.Figure(fig)
+
+    @render.data_frame
+    def complaints_table():
+        return render.DataTable(filtered_df())
+
+    # Drill-down Visuals
+    @render.ui
+    def country_rank_plot():
+        df = filtered_df()
+        if df.empty: return ui.div("No data.")
+        
+        df_country = df.groupby('country').size().reset_index(name='count').sort_values('count', ascending=False)
+        fig = px.pie(df_country, values='count', names='country', hole=.4, template="plotly_white")
+        fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=400)
+        return go.Figure(fig)
+
+    @render.ui
+    def channel_bar_plot():
+        df = filtered_df()
+        if df.empty: return ui.div("No data.")
+        
+        df_chan = df.groupby(['channel', 'status']).size().reset_index(name='count')
+        fig = px.bar(df_chan, x='channel', y='count', color='status', barmode='group', template="plotly_white")
+        fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=400)
+        return go.Figure(fig)
+
+app = App(app_ui, server)
