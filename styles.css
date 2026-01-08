@@ -105,6 +105,19 @@ body {
     background-color: #475569 !important;
 }
 
+/* Style for selected items in selectize */
+.selectize-input .item {
+    background-color: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    padding: 3px 8px !important;
+    border-radius: 4px !important;
+}
+
+.selectize-input .item::before {
+    color: white !important;
+}
+
 .datepicker {
     background-color: #334155 !important;
     color: white !important;

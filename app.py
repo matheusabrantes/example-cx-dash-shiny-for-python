@@ -263,7 +263,7 @@ def server(input, output, session):
         
         fig.update_layout(
             template="plotly_white",
-            margin=dict(l=60, r=30, t=30, b=80),
+            margin=dict(l=80, r=30, t=30, b=80),
             height=400,
             showlegend=False,
             xaxis=dict(
@@ -275,10 +275,12 @@ def server(input, output, session):
             ),
             yaxis=dict(
                 title="Complaints",
+                titlefont=dict(size=14),
                 showgrid=True,
                 automargin=True,
                 gridcolor='#f1f5f9',
-                zeroline=False
+                zeroline=False,
+                rangemode='tozero'
             ),
             hovermode="x unified",
             plot_bgcolor='white'
@@ -292,14 +294,20 @@ def server(input, output, session):
         if df.empty: return ui.div("No data available.")
         
         df_cat = df.groupby('category').size().reset_index(name='count').sort_values('count', ascending=True)
+        
+        # Calculate dynamic height based on number of categories
+        # Minimum 300px, 80px per category to ensure all are visible
+        num_categories = len(df_cat)
+        dynamic_height = max(300, num_categories * 80)
+        
         fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
         fig.update_traces(marker_color='#3498db')
         fig.update_layout(
             margin=dict(l=20, r=30, t=30, b=30), 
-            height=400, 
+            height=dynamic_height, 
             yaxis_title=None,
-            yaxis=dict(automargin=True),
-            xaxis=dict(automargin=True)
+            yaxis=dict(automargin=True, tickfont=dict(size=12)),
+            xaxis=dict(automargin=True, title="Count")
         )
         return fig
 
