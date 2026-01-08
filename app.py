@@ -84,7 +84,11 @@ app_ui = ui.page_navbar(
         "Overview",
         ui.layout_sidebar(
             ui.sidebar(
-                ui.h4("Filters"),
+                ui.div(
+                    ui.div("CX", class_="logo-box"),
+                    ui.h4("Insights", style="margin:0;"),
+                    class_="sidebar-header"
+                ),
                 ui.input_date_range("date_range", "Date Range", start="2025-01-01", end="2025-12-31"),
                 ui.input_selectize("country", "Country", choices=[], multiple=True),
                 ui.input_selectize("channel", "Channel", choices=[], multiple=True),
@@ -216,25 +220,25 @@ def server(input, output, session):
         df = filtered_df().copy()
         if df.empty: return ui.div("No data available for selected filters.")
         
-        # Ensure date is datetime and sorted
+        # Ensure date is datetime and aggregate by month for a smoother look like the mockup
         df['date'] = pd.to_datetime(df['date'])
-        df_daily = df.groupby('date').size().reset_index(name='count').sort_values('date')
+        df_monthly = df.groupby(pd.Grouper(key='date', freq='ME')).size().reset_index(name='count')
         
-        # Create plot
-        fig = px.line(
-            df_daily, 
+        # Create Area Plot with Spline
+        fig = px.area(
+            df_monthly, 
             x='date', 
             y='count',
             template="plotly_white",
-            markers=True
+            line_shape='spline' # Smooth curve like the mockup
         )
         
-        # Style traces - using standard hover to avoid NaN issues
+        # Style traces
         fig.update_traces(
-            line_color='#2c3e50', 
-            line_width=2,
-            marker=dict(size=6),
-            hovertemplate='<b>Date</b>: %{x}<br><b>Complaints</b>: %{y}<extra></extra>'
+            line_color='#3b82f6', 
+            line_width=3,
+            fillcolor='rgba(59, 130, 246, 0.1)', # Subtle blue shading
+            hovertemplate='<b>Month</b>: %{x|%B %Y}<br><b>Complaints</b>: %{y}<extra></extra>'
         )
         
         fig.update_layout(
@@ -243,12 +247,14 @@ def server(input, output, session):
             xaxis=dict(
                 title=None,
                 type='date',
-                tickformat="%b %d, %Y",
-                showgrid=True
+                tickformat="%b", # Just the month name like the mockup
+                dtick="M1",
+                showgrid=False
             ),
             yaxis=dict(
                 title="Complaints",
-                showgrid=True
+                showgrid=True,
+                gridcolor='#f1f5f9'
             ),
             hovermode="x"
         )
