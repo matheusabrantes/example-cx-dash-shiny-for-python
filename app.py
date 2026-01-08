@@ -217,19 +217,37 @@ def server(input, output, session):
         if df.empty: return ui.div("No data available for selected filters.")
         
         df['date'] = pd.to_datetime(df['date'])
-        df_daily = df.groupby('date').size().reset_index(name='count')
+        df_daily = df.groupby('date').size().reset_index(name='count').sort_values('date')
         
-        fig = px.line(df_daily, x='date', y='count', title=None, template="plotly_white")
-        fig.update_traces(line_color='#2c3e50', line_width=3, hovertemplate='Date: %{x|%b %d, %Y}<br>Count: %{y}')
+        fig = px.line(
+            df_daily, 
+            x='date', 
+            y='count', 
+            template="plotly_white",
+            markers=True
+        )
+        
+        fig.update_traces(
+            line_color='#2c3e50', 
+            line_width=2,
+            marker=dict(size=6),
+            hovertemplate='Date: %{x|%b %d, %Y}<br>Complaints: %{y}'
+        )
+        
         fig.update_layout(
-            margin=dict(l=0, r=0, t=20, b=40), 
+            margin=dict(l=50, r=20, t=20, b=50), 
             height=350,
             xaxis=dict(
-                type='date',
-                tickformat="%b %Y",
-                dtick="M1",
-                visible=True
-            )
+                title=None,
+                visible=True,
+                showgrid=True,
+                tickformat="%b %d"
+            ),
+            yaxis=dict(
+                title="Complaints",
+                showgrid=True
+            ),
+            hovermode="x unified"
         )
         return fig
 
@@ -241,7 +259,7 @@ def server(input, output, session):
         df_cat = df.groupby('category').size().reset_index(name='count').sort_values('count', ascending=True)
         fig = px.bar(df_cat, x='count', y='category', orientation='h', template="plotly_white")
         fig.update_traces(marker_color='#3498db')
-        fig.update_layout(margin=dict(l=120, r=20, t=20, b=20), height=350, yaxis_title=None)
+        fig.update_layout(margin=dict(l=150, r=20, t=20, b=20), height=350, yaxis_title=None)
         return fig
 
     @render.data_frame
